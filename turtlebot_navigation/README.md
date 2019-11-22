@@ -1,4 +1,4 @@
-# IO Gazebo Turtlebot
+# Turtlebot Gazebo and Navigation
 
 ### Overview
 Sample ROS packages for running turtlebot3 simulation with rapyuta.io. They demonstrate separation of your launch files
