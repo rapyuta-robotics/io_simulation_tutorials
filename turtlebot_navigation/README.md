@@ -29,14 +29,16 @@ sudo rosdep init
 rosdep update
 rosdep install --from-paths --ignore-src io_simulation_tutorials/turtlebot_navigation -y --rosdistro melodic
 cd ../
+source /opt/ros/melodic/setup.bash
 catkin build io_gazebo_turtlebot_bringup io_gazebo_turtlebot_demo_app io_gazebo_turtlebot_description io_gazebo_turtlebot_navigation
 ```
 
 ### Run
 #### Run on your local machine
 ```
+cd ../
 source catkin_ws/devel/setup.bash
-roslaunch io_gazebo_turtlebot_bringup bringup.launch 
+roslaunch io_gazebo_turtlebot_bringup bringup.launch gui:=true
 ```
 
 #### Run with rapyuta.io
