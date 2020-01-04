@@ -15,21 +15,18 @@
   <include if="$(arg load_common_param)" file="$(find ur_robotiq_bringup)/launch/common.launch"/>
 
   <!-- Run the main MoveIt! executable without trajectory execution (we do not have controllers configured by default) -->
-  <remap if="$(arg gazebo)" from="/follow_joint_trajectory" to="/arm_controller/follow_joint_trajectory"/>
-  <include file="$(find ur_robotiq_moveit_config)/launch/move_group.launch">
-    <arg name="allow_trajectory_execution" value="true"/>
+  <include file="$(find ur_robotiq_bringup)/launch/motion_planning.launch">
+    <arg name="gazebo" value="$(arg gazebo)"/>
     <arg name="fake_execution" value="$(arg fake_execution)"/>
     <arg name="info" value="$(arg info)"/>
     <arg name="debug" value="$(arg debug)"/>
   </include>
 
+  <!-- Run pick and place action server  -->
   <include if="$(arg pick_and_place)" file="$(find ur_robotiq_app)/launch/pick_and_place_action_server.launch">
     <arg name="gazebo" value="$(arg gazebo)"/>
     <arg name="camera" value="$(arg camera)"/>
   </include>
-
-  <!-- If needed, broadcast static tf for robot root -->
-  <node pkg="tf" type="static_transform_publisher" name="virtual_joint_broadcaster_0" args="0 0 0 0 0 0 world ur_robotiq_environment 100" />
 
   <!-- Launch visualizer -->
   <include if="$(arg rviz)" file="$(find ur_robotiq_bringup)/launch/rviz.launch"/>
