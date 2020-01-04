@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="gazebo" default="false" />
+  <arg name="camera" default="false" />
+  <!-- pick_and_place -->
+  <node name="pick_and_place_commander" pkg="ur_robotiq_app" type="pick_and_place.py" output="screen" respawn="true">
+    <param name="gazebo" value="$(arg gazebo)" />
+    <param name="camera" value="$(arg camera)" />
+  </node>
+</launch>

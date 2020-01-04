@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="repeat" default="false" />
+  <rosparam command="load" file="$(find ur_robotiq_app)/config/place_locations.yaml" />
+  <node name="pick_and_place_client" pkg="ur_robotiq" type="pick_and_place_action_client.py" respawn="$(arg repeat)" output="screen"/>
+</launch>
