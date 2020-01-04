@@ -1,9 +1,14 @@
 <?xml version="1.0"?>
 <launch>
+  <arg name="load_common_param" default="true" doc="this param in the either sim.launch or app.launch should be true"/>
+
   <arg name="gazebo" default="true"/>  
   <arg name="fake_execution" default="false" />
   <arg name="debug" default="false"/>
   <arg name="info" default="false"/>
+
+  <!-- Load the URDF, SRDF and other .yaml configuration files on the param server -->
+  <include if="$(arg load_common_param)" file="$(find ur_robotiq_bringup)/launch/common.launch"/>
 
   <!-- Run the main MoveIt! executable without trajectory execution (we do not have controllers configured by default) -->
   <remap if="$(arg gazebo)" from="/follow_joint_trajectory" to="/arm_controller/follow_joint_trajectory"/>
