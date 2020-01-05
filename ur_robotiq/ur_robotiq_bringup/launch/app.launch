@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="load_common_param" default="true" doc="this param in the either sim.launch or app.launch should be true"/>
+
+  <arg name="gazebo" default="true"/>  
+  <arg name="fake_execution" default="false" />
+  <arg name="debug" default="false"/>
+  <arg name="info" default="false"/>
+
+  <arg name="moveit" default="true" />
+  <arg name="camera" default="false" />
+  <arg name="pick_and_place" default="true" />
+  <arg name="rviz" default="true" />
+
+  <!-- Run the main MoveIt! executable without trajectory execution (we do not have controllers configured by default) -->
+  <include if="$(arg moveit)" file="$(find ur_robotiq_bringup)/launch/motion_planning.launch">
+    <arg name="load_common_param" value="$(arg load_common_param)"/>
+    <arg name="gazebo" value="$(arg gazebo)"/>
+    <arg name="fake_execution" value="$(arg fake_execution)"/>
+    <arg name="info" value="$(arg info)"/>
+    <arg name="debug" value="$(arg debug)"/>
+  </include>
+
+  <!-- Run pick and place action server  -->
+  <include if="$(arg pick_and_place)" file="$(find ur_robotiq_app)/launch/pick_and_place_action_server.launch">
+    <arg name="gazebo" value="$(arg gazebo)"/>
+    <arg name="camera" value="$(arg camera)"/>
+  </include>
+
+  <!-- Launch visualizer -->
+  <include if="$(arg rviz)" file="$(find ur_robotiq_bringup)/launch/rviz.launch"/>
+
+</launch>

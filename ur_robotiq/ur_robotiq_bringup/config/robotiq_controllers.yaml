@@ -1,0 +1,8 @@
+robotiq_2f_85_position_controller:
+  type: position_controllers/GripperActionController
+  joint: robotiq_2f_85_right_driver_joint
+
+# robotiq_2f_85_trajectory_controller:
+#   type: position_controllers/JointTrajectoryController
+#   joints:
+#     - robotiq_2f_85_right_driver_joint
