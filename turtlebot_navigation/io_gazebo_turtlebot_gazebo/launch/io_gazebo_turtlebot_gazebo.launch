@@ -1,8 +1,8 @@
 <launch>
-  <arg name="model" default="$(optenv TURTLEBOT3_MODEL burger)" doc="turtlebot3 model type [burger, waffle, waffle_pi]"/>
   <arg name="gui" default="false"/>
-  
-    
+
+  <node name="tf_prefix_separator" pkg="io_gazebo_turtlebot_gazebo" type="tf_prefix_separator.py" output="screen" />
+
   <!-- spawn world -->
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
     <arg name="world_name" value="$(find turtlebot3_gazebo)/worlds/turtlebot3_world.world"/>

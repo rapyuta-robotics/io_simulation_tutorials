@@ -13,20 +13,6 @@ rospy.init_node('demo_app')
 rospy.wait_for_message('/clock', Time)
 rospy.loginfo('Time synced with Simulator')
 
-# Load initial pose
-init_quaternion = quaternion_from_euler(0.0, 0.0, float(rospy.get_param('/init_yaw')))
-
-initalpose = PoseWithCovarianceStamped()
-initalpose.pose.pose.position.x = float(rospy.get_param('/init_x'))
-initalpose.pose.pose.position.y = float(rospy.get_param('/init_y'))
-initalpose.pose.pose.position.z = 0.0
-initalpose.pose.pose.orientation.x = init_quaternion[0]
-initalpose.pose.pose.orientation.x = init_quaternion[1]
-initalpose.pose.pose.orientation.x = init_quaternion[2]
-initalpose.pose.pose.orientation.x = init_quaternion[3]
-
-initpose_pub = rospy.Publisher('/initialpose', PoseWithCovarianceStamped, queue_size=1)
-
 # Load locations 
 locations = []
 locations_num = rospy.get_param("~location_num", 0)
@@ -46,10 +32,7 @@ for i in range(locations_num):
 move_base_client = actionlib.SimpleActionClient('move_base',MoveBaseAction)
 rospy.loginfo("Waiting MoveBase action server")
 if move_base_client.wait_for_server(timeout = rospy.Duration(60.0)):
-    rospy.loginfo("Confirmed MoveBase action server is running")
-    # Send initial pose
-    initpose_pub.publish(initalpose)
-    
+    rospy.loginfo("Confirmed MoveBase action server is running")    
     # Send goal
     for i in range(locations_num):
         quaternion = quaternion_from_euler(0.0, 0.0, loc_yaw[i])
