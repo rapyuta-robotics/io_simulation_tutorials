@@ -2,15 +2,17 @@
   <arg name="load_common_param" default="true" doc="this param in the either sim.launch or app.launch should be true"/>
   <arg name="model" default="$(optenv TURTLEBOT3_MODEL burger)" doc="turtlebot3 model type [burger, waffle, waffle_pi]"/>
   <arg name="rviz" default="false"/>
+  
   <arg name="use_rapyuta.io" default="false"/>
-  <arg name="scan_topic" default="scan_amcl"/>
   <arg name="robot_name" default="$(optenv ROBOT_NAMESPACE turtle0)"/>
   <arg name="namespace" default="/$(arg robot_name)"/>
-  <arg name="demo_app" default="/$(arg demo_app)"/>
-  <arg name="x_pos" default="-0.5"/>
-  <arg name="y_pos" default="-0.5"/>
-  <arg name="yaw" default="0.0"/>
-
+  <arg name="x_pos" default="$(optenv X_POS -0.5)"/>
+  <arg name="y_pos" default="$(optenv Y_POS -0.5)"/>
+  <arg name="yaw"   default="$(optenv YAW 0.0)"/>
+  
+  <arg name="scan_topic" default="scan_amcl"/>
+  <arg name="demo_app" default="true"/>
+  
   <!-- load common param -->
   <include if="$(arg load_common_param)" file="$(find io_gazebo_turtlebot_bringup)/launch/common.launch"/>
 
