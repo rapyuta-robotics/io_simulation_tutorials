@@ -23,11 +23,11 @@ class FrameidPrefixremover(object):
         self._out_topic = out_topic
 
     def cb(self, msg):
-        if 'header' in msg._connection_header['message_definition']:
-            msg_name = msg._connection_header['type']
-            msg_class = get_message_class(msg_name)
-            msg = msg_class().deserialize(msg._buff)
-
+        # if 'header' in msg._connection_header['message_definition']:
+        msg_name = msg._connection_header['type']
+        msg_class = get_message_class(msg_name)
+        msg = msg_class().deserialize(msg._buff)
+        if hasattr(msg_class(), 'header'):
             #remove prefix if prefix is model_name
             prefix, remaining = separate_prefix(msg.header.frame_id)
             if prefix in self._model_list:

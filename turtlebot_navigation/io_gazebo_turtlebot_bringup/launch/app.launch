@@ -6,6 +6,7 @@
   <arg name="scan_topic" default="scan_amcl"/>
   <arg name="robot_name" default="$(optenv ROBOT_NAMESPACE turtle0)"/>
   <arg name="namespace" default="/$(arg robot_name)"/>
+  <arg name="demo_app" default="/$(arg demo_app)"/>
   <arg name="x_pos" default="-0.5"/>
   <arg name="y_pos" default="-0.5"/>
   <arg name="yaw" default="0.0"/>
@@ -31,7 +32,7 @@
   </include>
 
   <!-- app -->  
-  <include file="$(find io_gazebo_turtlebot_demo_app)/launch/demo_app.launch">
+  <include if="$(arg demo_app)" file="$(find io_gazebo_turtlebot_demo_app)/launch/demo_app.launch">
     <arg name="model" value="$(arg model)"/>
   </include>
 
@@ -51,6 +52,6 @@
   </group>
 
   <!-- frame_id conversion from gazebo -->
-  <node name="frame_id_prefix_remover" pkg="io_gazebo_turtlebot_gazebo" type="frame_id_prefix_remover.py" args="/scan /$(arg scan_topic)" output="screen" />
+  <node name="frame_id_prefix_remover" pkg="io_gazebo_turtlebot_gazebo" type="frame_id_prefix_remover.py" args="/scan /$(arg scan_topic)" output="screen" respawn="true" />
 
 </launch>
