@@ -2,6 +2,7 @@
   <arg name="load_common_param" default="true" doc="this param in the either sim.launch or app.launch should be true"/>
   <arg name="model" default="$(optenv TURTLEBOT3_MODEL burger)" doc="turtlebot3 model type [burger, waffle, waffle_pi]"/>
   <arg name="gui" default="true" doc="start gazebo gui. should be true when used with rapyuta.io"/>
+  <arg name="world" default="$(optenv WORLD turtlebot3_world)" doc="world file name"/>
 
   <!-- load common param -->
   <include if="$(arg load_common_param)" file="$(find io_gazebo_turtlebot_bringup)/launch/common.launch"/>
@@ -9,5 +10,6 @@
   <!-- simulator -->
   <include file="$(find io_gazebo_turtlebot_gazebo)/launch/io_gazebo_turtlebot_gazebo.launch">
     <arg name="gui" value="$(arg gui)"/>
+    <arg name="world" value="$(arg world)"/>
   </include>
 </launch>
