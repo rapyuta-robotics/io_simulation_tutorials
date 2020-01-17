@@ -1,0 +1,639 @@
+#!/bin/bash
+
+STARTTIME="$(date -u --iso-8601=ns)"
+
+DOCKER_PY_VER="3.1.3"
+DOCKER_COMPOSE_VER="1.21.0"
+IS_ROS=false
+SALT_GRAINS="/etc/salt/grains"
+RUNTIME="preinstalled"
+CATKIN_WS=""
+RAPYUTA_VENV="/opt/rapyuta/venv"
+RAPYUTA_VENV_ACT="${RAPYUTA_VENV}/bin/activate"
+ERR_LOG_FILE="/var/log/rapyuta_error_log"
+INSTALL_LOG_FILE="/var/log/rapyuta_install_log"
+OS="ubuntu"
+LSB_RELEASE="$(lsb_release -cs)"
+DOCKER_CE_LIST="/etc/apt/sources.list.d/docker-ce.list"
+CURRENTPROGRESS=0
+RETRIES_COUNT=3
+ARTIFACTS="https://storage.googleapis.com/artifacts.rapyuta.io/wheels"
+
+SALT_WHL="${ARTIFACTS}/salt-2017.7.0_n_a_bfac47fd01-py2-none-any.whl"
+CRYPTO_AMD64_WHL="${ARTIFACTS}/cryptography-1.2.3-cp27-cp27mu-linux_x86_64.whl"
+CRYPTO_ARM64_WHL="${ARTIFACTS}/cryptography-1.2.3-cp27-cp27mu-linux_aarch64.whl"
+CRYPTO_ARM32_WHL="${ARTIFACTS}/cryptography-1.2.3-cp27-cp27mu-linux_armv7l.whl"
+CFFI_AMD64_WHL="${ARTIFACTS}/cffi-1.12.2-cp27-cp27mu-linux_x86_64.whl"
+CFFI_ARM64_WHL="${ARTIFACTS}/cffi-1.12.2-cp27-cp27mu-linux_aarch64.whl"
+CFFI_ARM32_WHL="${ARTIFACTS}/cffi-1.12.2-cp27-cp27mu-linux_armv7l.whl"
+PYCRYPTO_AMD64_WHL="${ARTIFACTS}/pycrypto-2.6.1-cp27-cp27mu-linux_x86_64.whl"
+PYCRYPTO_ARM64_WHL="${ARTIFACTS}/pycrypto-2.6.1-cp27-cp27mu-linux_aarch64.whl"
+PYCRYPTO_ARM32_WHL="${ARTIFACTS}/pycrypto-2.6.1-cp27-cp27mu-linux_armv7l.whl"
+ZMQ_AMD64_WHL="${ARTIFACTS}/pyzmq-15.2.0-cp27-cp27mu-manylinux1_x86_64.whl"
+ZMQ_ARM64_WHL="${ARTIFACTS}/pyzmq-15.2.0-cp27-cp27mu-linux_aarch64.whl"
+ZMQ_ARM32_WHL="${ARTIFACTS}/pyzmq-15.2.0-cp27-cp27mu-linux_armv7l.whl"
+PYTHON=""
+
+CPUARCH_AMD64="amd64"
+CPUARCH_ARM64="arm64"
+CPUARCH_ARM32="armhf"
+CPUARCH="$(uname -m)" # later updated to one of the above enums
+
+declare -a jobs=("install_system_deps" "init_venv" "install_salt")
+declare -A grains
+
+function run_command() {
+  $@ 1>>"$INSTALL_LOG_FILE" 2>>"$ERR_LOG_FILE"
+  if [ $? != 0 ]; then
+    cat<<EOM
+Error occurred while running: ${@}
+Please check ${ERR_LOG_FILE} for more details.
+
+You must:
+ * Ensure device has an active internet connection (ping 8.8.8.8)
+ * Ensure there is adequate disk space on device (df -h)
+Try re-onboarding the device. If issue persists please contact support at: support@rapyuta.io
+EOM
+    exit -1
+  fi
+}
+
+function log_command() {
+  $@ 1>> $INSTALL_LOG_FILE 2>> $ERR_LOG_FILE
+}
+
+function print_progress_bar(){
+  ch='#'
+  size=10
+  b=$(( $1 / $size ))
+  CURRENTPROGRESS=$1
+  printf '%*s' "$b" | tr ' ' "$ch"
+  printf '%*s' "$((size - b))"
+  printf '(%d%%)\r' $1
+}
+
+function add_timing_grains(){
+   TOTAL_INSTALL_TIME=$(($(date -u +%s) - $(date -d "$STARTTIME" -u +%s)))
+   add_grains install_script_duration $TOTAL_INSTALL_TIME
+   add_grains install_start_time $STARTTIME
+}
+
+function run_jobs() {
+  for job in ${jobs[@]}
+  do
+  	$job
+  done
+}
+
+function wait_for_lock(){
+    sp="/-\|"
+    if check_command_exists fuser; then
+        CHECK_COMMAND="fuser /var/{lib/{dpkg,apt/lists},cache/apt/archives}/lock &> /dev/null"
+    else
+        CHECK_COMMAND="pgrep -l apt > /dev/null 2>&1 "
+    fi
+    if eval ${CHECK_COMMAND} ; then
+        echo -ne 'Waiting for apt lock  '
+    else
+        return 0
+    fi
+    while eval $CHECK_COMMAND; do
+        printf "\b${sp:i++%${#sp}:1}"
+        sleep 1
+    done
+    echo -e "\033[1K"
+    print_progress_bar $CURRENTPROGRESS
+}
+
+check_command_exists() {
+    command -v "$1" > /dev/null 2>&1
+}
+
+
+function print_rr_banner() {
+    echo 'IF9fX18gICAgICAgICAgICAgICAgICAgICAgICAgXyAgICAgICAgICBfX19fICAgICAgIF8gICAgICAgICAgIF8gICBfICAgICAgICAgIA0KfCAgXyBcIF9fIF8gXyBfXyAgXyAgIF8gXyAgIF98IHxfIF9fIF8gIHwgIF8gXCBfX18gfCB8X18gICBfX18gfCB8XyhfKSBfX18gX19fIA0KfCB8XykgLyBfYCB8ICdfIFx8IHwgfCB8IHwgfCB8IF9fLyBfYCB8IHwgfF8pIC8gXyBcfCAnXyBcIC8gXyBcfCBfX3wgfC8gX18vIF9ffA0KfCAgXyA8IChffCB8IHxfKSB8IHxffCB8IHxffCB8IHx8IChffCB8IHwgIF8gPCAoXykgfCB8XykgfCAoXykgfCB8X3wgfCAoX19cX18gXA0KfF98IFxfXF9fLF98IC5fXy8gXF9fLCB8XF9fLF98XF9fXF9fLF98IHxffCBcX1xfX18vfF8uX18vIFxfX18vIFxfX3xffFxfX198X19fLw0KICAgICAgICAgICB8X3wgICAgfF9fXy8gICAgICAgICAgICAgICAgDQoNCg==' | base64 -d
+}
+
+
+function run_as_sudoer() {
+  [ "$UID" -eq 0 ] || exec sudo "$0" "$@"
+}
+
+function update_grains() {
+    log_command touch $SALT_GRAINS
+    for key in ${!grains[@]}; do
+        echo ${key}: ${grains[${key}]} >> $SALT_GRAINS
+    done
+}
+
+function remove_grains(){
+    log_command rm $SALT_GRAINS
+}
+
+function add_grains() {
+  key=$1
+  value=$2
+  grains[$key]+=$value
+}
+
+function check_running_deployment() {
+  EXECUTABLES=$(docker ps -q --filter name=inst-* 2> /dev/null)
+  EXIT_MESG="Deployments are still running for this device. Deprovision the deployment or do force uninstall of the rapyuta agent using command \"rapyuta-agent-uninstall -f"\"
+  if [ ! -z $EXECUTABLES ]; then
+    echo $EXIT_MESG
+    exit -1
+  fi
+
+  if [ -f "$RAPYUTA_VENV_ACT" ]; then
+    source "$RAPYUTA_VENV_ACT"
+    if supervisorctl status all 2> /dev/null | grep -v "restartlistener" | grep -q "RUNNING"; then
+      echo $EXIT_MESG
+      exit -1
+    fi
+  fi
+}
+
+function install_system_deps () {
+  print_progress_bar 5
+  if hash dpkg-query 2>/dev/null; then
+    wait_for_lock
+    log_command apt-get update
+    deps="virtualenv psmisc"
+    for dep in $deps ; do
+      dpkg-query -W -f='${Package}\n' | grep ^$dep$ > /dev/null 2>&1
+      if [ $? != 0 ]; then
+        wait_for_lock
+        log_command apt-get install -y $dep
+      fi
+    done
+  fi
+}
+
+function validate_and_set_python() {
+  declare -a python_bins=("/usr/bin/python2" "/usr/bin/python")
+  for python_bin in "${python_bins[@]}"; do
+    if [ -f "$python_bin" ]; then
+      PYTHON=$python_bin
+      break
+    fi
+  done
+  if [ -z "$PYTHON" ]; then
+    echo -ne "Couldn't find python binary on your system. Looked at: ${python_bins[@]}\n"
+    echo -ne "Please install python and ensure it's in one of the above locations.\n\n"
+    exit -1;
+  fi
+  version=$("$PYTHON" <<EOM
+from __future__ import print_function
+from platform import python_version
+from distutils.version import LooseVersion
+if LooseVersion('2.7.9') <= python_version() < LooseVersion('3'):
+  print('valid')
+else:
+  print(python_version())
+EOM
+  )
+  if [ "$version" != "valid" ]; then
+    echo -ne "Invalid python version: $version at $PYTHON\n"
+    echo -ne "Required version: >=2.7.9,<3\n\n"
+    exit -1;
+  fi
+}
+
+function check_init_manger() {
+    init=`strings /sbin/init |
+      awk 'match($0, /(upstart|systemd|sysvinit)/) { print tolower(substr($0, RSTART, RLENGTH));exit; }'`
+
+    if [ $init == $1 ]; then
+        return 1
+    else
+        return 0
+    fi
+} # e.g.: check_init_manager systemd
+
+function set_ros_workspace() {
+  if ! [[ -z $CATKIN_WS ]]; then
+    if ! [[ -d $CATKIN_WS ]]; then
+      echo "Directory $CATKIN_WS not found."
+      echo "To set default catkin workspace. Use: bash $0 -w <path-to-catkin_ws>"
+      exit -1
+    fi
+    add_grains "ros_workspace" $CATKIN_WS
+  fi
+}
+
+function add_docker_gpg_key() {
+  cat <<EOM | log_command apt-key add -
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+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
+YT90qFF93M3v01BbxP+EIY2/9tiIPbrd
+=0YYh
+-----END PGP PUBLIC KEY BLOCK-----
+EOM
+}
+
+function validate_and_set_docker_version() {
+  case "$LSB_RELEASE" in
+    xenial )
+      DOCKER_CE_PKG="17.12.1~ce-0~$OS" ;;
+    bionic )
+      DOCKER_CE_PKG="5:18.09.7~3-0~$OS-$LSB_RELEASE"
+      DOCKER_CLI_PKG="$DOCKER_CE_PKG"
+      CONTAINERD_VERSION="1.2.6-3" ;;
+    * )
+      echo -ne "Ubuntu Version $LSB_RELEASE not supported. Aborting.. \n\n"
+      exit -1;
+  esac
+}
+
+function validate_and_set_cpuarch() {
+  case "$CPUARCH" in
+  x86_64|amd64)
+    CPUARCH=$CPUARCH_AMD64
+    ;;
+  aarch64*)
+    CPUARCH=$CPUARCH_ARM64
+    ;;
+  armv7*)
+    CPUARCH=$CPUARCH_ARM32
+    ;;
+  *)
+    echo -ne "CPU architecture $CPUARCH not supported. Aborting.. \n\n"
+    exit -1;
+  esac
+}
+
+function add_docker_deb_repo() {
+  cat <<EOM >$DOCKER_CE_LIST
+deb [arch="$CPUARCH"] https://download.docker.com/linux/$OS $LSB_RELEASE stable
+EOM
+  pre_reqs="apt-transport-https ca-certificates"
+  wait_for_lock
+  log_command apt-get install -y -qq $pre_reqs
+  add_docker_gpg_key
+}
+
+function install_docker() {
+  add_docker_deb_repo
+  wait_for_lock
+  log_command apt-get update
+  print_progress_bar 60
+  docker_version_command='dpkg-query --showformat='\''${Version}'\'' --show docker-ce'
+  docker_version=$(${docker_version_command} 2>&1)
+  if [[ $? -eq 0 ]]  && [[ ${docker_version} != "'${DOCKER_CE_PKG}'" ]]; then
+    echo "Warning! docker-ce version on this device is being changed."
+    print_progress_bar 60
+  fi
+  wait_for_lock
+  if [ ! -z "$CONTAINERD_VERSION" ]; then
+      if ! $(log_command apt-get -y --allow-downgrades install containerd.io=$CONTAINERD_VERSION); then
+          echo -ne 'Unable to install containerd.io . Aborting.. \n\n'
+          exit -1;
+      fi
+      log_command apt-mark hold containerd.io
+  fi
+  if [ ! -z "$DOCKER_CLI_PKG" ]; then
+      DOCKER_CLI_INSTALL_CMD="docker-ce-cli=$DOCKER_CLI_PKG"
+  fi
+  while [ $RETRIES_COUNT -gt 0 ]
+  do
+      if ! $(log_command apt-get -y --allow-downgrades install docker-ce=$DOCKER_CE_PKG $DOCKER_CLI_INSTALL_CMD); then
+          RETRIES_COUNT=$(( RETRIES_COUNT-1 ))
+          echo -ne 'Unable to install docker-ce. Retrying .. \n\n'
+      else
+          break
+      fi
+  done
+  if [ $RETRIES_COUNT -eq 0 ]; then
+    cat<<EOM
+Error occurred while installing docker
+Please check ${ERR_LOG_FILE} for more details.
+
+You must:
+ * Ensure device has an active internet connection (ping 8.8.8.8)
+ * Ensure there is adequate disk space on device (df -h)
+Please contact support at: support@rapyuta.io for any help
+EOM
+    exit -1
+  fi
+  log_command apt-mark hold docker-ce
+  log_command apt-mark hold docker-ce-cli
+}
+
+function install_docker_py() {
+  if ! $(log_command pip install "docker==$DOCKER_PY_VER"); then
+      echo -ne 'Unable to install docker_py version:$DOCKER_PY_VER. Aborting.. \n\n'
+      exit -1;
+  fi
+}
+
+function install_docker_compose() {
+  if ! $(log_command pip install "docker_compose==$DOCKER_COMPOSE_VER"); then
+      echo -ne 'Unable to install docker_compose version:$DOCKER_COMPOSE_VER. Aborting.. \n\n'
+      exit -1;
+  fi
+}
+
+function add_rapyuta_image_token_in_grain() {
+    add_grains "rapyuta_registry_token" dW51c2VkOmV5SmhiR2NpT2lKU1V6STFOaUlzSW5SNWNDSTZJa3BYVkNKOS5leUpwYzNNaU9pSnJkV0psY201bGRHVnpMM05sY25acFkyVmhZMk52ZFc1MElpd2lhM1ZpWlhKdVpYUmxjeTVwYnk5elpYSjJhV05sWVdOamIzVnVkQzl1WVcxbGMzQmhZMlVpT2lKeWFXOHRjSEp2YW1WamRDMW1lV056Y0d4b2EyaGplVzEwZG5OdGFHcGhaR3BzWVdVaUxDSnJkV0psY201bGRHVnpMbWx2TDNObGNuWnBZMlZoWTJOdmRXNTBMM05sWTNKbGRDNXVZVzFsSWpvaWNuSXRaR1YyYVdObExUaGhNVFV5WlRFeUxUTTBNbVl0TkRjM015MDRabVprTFdaak1EazNNVEl4WW1SbE1pSXNJbXQxWW1WeWJtVjBaWE11YVc4dmMyVnlkbWxqWldGalkyOTFiblF2YzJWeWRtbGpaUzFoWTJOdmRXNTBMbTVoYldVaU9pSnlZWEI1ZFhSaExXbHRZV2RsTFhCMWJHeGxjaUlzSW10MVltVnlibVYwWlhNdWFXOHZjMlZ5ZG1salpXRmpZMjkxYm5RdmMyVnlkbWxqWlMxaFkyTnZkVzUwTG5WcFpDSTZJbVk1TjJVNE9HUTFMVEptTURRdE1URmxZUzFpT0dGa0xUQXdNR1F6WVRVeE5UTm1NeUlzSW5OMVlpSTZJbk41YzNSbGJUcHpaWEoyYVdObFlXTmpiM1Z1ZERweWFXOHRjSEp2YW1WamRDMW1lV056Y0d4b2EyaGplVzEwZG5OdGFHcGhaR3BzWVdVNmNtRndlWFYwWVMxcGJXRm5aUzF3ZFd4c1pYSWlmUS5rbHJ0ZGh0TERNMWI1UHNLS2tQb2xGekpkc3U3QWE3ejVuVzdjTkFfSWVhaWpKeXhBcFhMT21GQXNfM0JrQmE3dEpEeHlkeU4zNFRtUjZBMXI2YmVZVW9reXVmdDdmMkNELUhsVTZPZ1FPbGFrbENDLUxNUW9zRDF3TV9rVkk3NWR6cnQ1Vm5uUXdTSTZQZXhxbUF2NVdnYVpSd2pIZ3FIbzNMa2FvTVAzeGRwUExZYVNyaE5iaC12emZJMUZieTVEckt1dUFhUi1MZE44dkVEeE5Mc283dWYzWWNndWhoSm95Y2dLbHFEblhmQklXemNHb2h0X0lTZmY3RnJQZEkxczVrZl94bFpqY25oM3ROZW5MMjI4WEt0bGpzMi1PVXRqcXBTR1FyZFVmb0JRM29BcDRGQXhnVDVkM3dPUkgzZFFTYnc5dTlrektiYk8xempzVjYyR2c=
+}
+
+function install_docker_runtime() {
+  install_docker
+  print_progress_bar 80
+  install_docker_py
+  print_progress_bar 90
+  install_docker_compose
+}
+
+function install_salt_service() {
+  ## Install service file
+  if ! systemctl list-unit-files | log_command grep salt-minion.service; then {
+      cat > /etc/systemd/system/rapyuta-agent.service <<- EOM
+
+[Unit]
+Description=Rapyuta Agent
+After=network.target
+Wants=rapyuta-dmclient.service rapyuta-telegraf.service rapyuta-supervisor.service
+[Service]
+Type=simple
+NotifyAccess=all
+LimitNOFILE=8192
+OOMScoreAdjust=-700
+CPUShares=2048
+CPUWeight=200
+Restart=on-failure
+ExecStartPre=/bin/bash -c "source /opt/rapyuta/venv/bin/activate; python /opt/rapyuta/service_stats/update_restart_count.py salt-minion || true"
+ExecStart=$RAPYUTA_VENV/bin/salt-minion
+
+[Install]
+WantedBy=multi-user.target
+EOM
+  } fi
+}
+
+function add_salt_config_and_keys() {
+    mkdir -p /etc/salt/pki/minion/ &&  mkdir -p /etc/salt/minion.d && mkdir -p /etc/rapyuta
+    mkdir -p /var/log/rapyuta/deployments && mkdir -p /opt/rapyuta/supervisor
+    ## Write the config files
+    cat  > /etc/salt/pki/minion/minion.pem <<- EOM
+-----BEGIN RSA PRIVATE KEY-----
+MIIEpQIBAAKCAQEAvkwwEbqT0zQ7G8fv4Z5tu/l9GU9QPvjUsbFJ2zaUm6d1asuq
+E9SvtI+gpitXG0Y1SSfHEjz3FTEhtiV6E3fx4RFPIsMeWDH31NC7mWd4N0M2sbwE
+mR+ZweBtCx+YfmTIjQh5JnvbPQAx0GRXHykFmXLmEzFevqyaxzZtK1YLVXStYlKs
+PUYitwzzf/x7OSvMFmtfkg2SERb93FPtbi5mKq+euuWUWScoYMPV5HT8fpg33Mjq
+qdlSJm6f0KJQhXYECCPhl1SUGi3vxVpw8xsQXQ4LdZ4yal6TngnRvSPHxFHyJBpg
+9JImciG4xlO2K3CzgEEwA8M62Ldmb4DXGRPD+wIDAQABAoIBAEPv5TVfG8lKG1QW
+tBAjRF/YeQ3hH+/rW9u4RHrLaJCNX0DqRuTfiH74y8ynKmjlTr64QbzEIR3itXtW
+s9dheev1BwCNEjdAV48VmfPxWZy5FTysuCOGgZkSqztOY120U1juTnoru6ByglY4
+jFXmikY3G+Z8OKvv6S33w0+2X0N5T42HAJecFHjb9oX+54LqxxhsofrWT4wy/ktq
+3w0cILNmPyElrCPeVyQV9csbc7E/a4kOGnj6S/UYWc+gg7HMRL0qIAtnH3sgVei0
+z8SF/3S8WjEU6YXFNs/yr2WuL4h1jTS7WbI0Dey6N+4TdlnpBzaaVWw8Y4wMKmGJ
+Ed9WUIkCgYEA16w5KdzcmUNR2UspGgiu5EvPyKEdsBOsuIrNb4yRn0n+7aIoBm6G
+Zec7OoOsqTHp6nUVRVc4SZ6FKxOQ5KTqtaSkIVrHRp6nZL4lK1Jm6/s/b8s3a2ks
+9bpipfz6ywSNOeCXpLz/edYtKk/Q3OTuep7rkCyBCsF19EICXKcoR50CgYEA4eFQ
+EterBXbrycZ5qgS6uaYLRA24nNgyaJyJ+hnnpCS0HySG1RiymvL5GTz9bVJm7s9a
+78pMr3kgYjyRD/FOm4AJQFtI9n6JV/8G3+DeHT144bKpRgz94O0wSXP3sXP8dbbG
+Kdh4tWAzqQlrWj1bfNelK1nCwPPXRnVdRCM0QncCgYEA0Z1Bsb5HaW5UjqzONc9a
+q+hC+uwcvpVgubuuD0y/++EfNDb2T8n8Ne6XUjfICGnKv2UsV0h+HI9FPqi1moPu
+2rw6CXEBXVG1v+ROm9xqy9BVx4HrSynd2LZeSpWl6stxt17iA+rtIq1XGFia1xZp
+8iOjL20RvjJpQg0l3odYTsECgYEAlID8kxbFspcH2CWr8XKgjNO0zm4y9LNTGOHp
++Ms1Nv6GiX8LQmi1bBfYW5Z0i35EfDdJcyNOnYMGHm/xc0jTxHo+GtipNJ3mkDrz
++xatEQ5MPh6nGY4LD+kA+RnMPBekYIPk7rgKTDzOWhD+SlrSnlZsmf6ugwsNep5I
+zjZS8msCgYEAi4oDzBlFEDhR6HPNfnVc+2zurE9JAZBw/wAt/2Gr6b1gk6MK36NF
+ggkpRufyBuGnID9FiLdy090qj0HIiOfUwloJB95z2iLOv499VFhavTloAYmpsYGg
+Mja0TGfw77TlL9rX35X1lZLrf8rTXjcvjliE1kI9JuyMnl3t4KJPrK4=
+-----END RSA PRIVATE KEY-----
+EOM
+    cat > /etc/salt/pki/minion/minion.pub  <<- EOM
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvkwwEbqT0zQ7G8fv4Z5t
+u/l9GU9QPvjUsbFJ2zaUm6d1asuqE9SvtI+gpitXG0Y1SSfHEjz3FTEhtiV6E3fx
+4RFPIsMeWDH31NC7mWd4N0M2sbwEmR+ZweBtCx+YfmTIjQh5JnvbPQAx0GRXHykF
+mXLmEzFevqyaxzZtK1YLVXStYlKsPUYitwzzf/x7OSvMFmtfkg2SERb93FPtbi5m
+Kq+euuWUWScoYMPV5HT8fpg33MjqqdlSJm6f0KJQhXYECCPhl1SUGi3vxVpw8xsQ
+XQ4LdZ4yal6TngnRvSPHxFHyJBpg9JImciG4xlO2K3CzgEEwA8M62Ldmb4DXGRPD
++wIDAQAB
+-----END PUBLIC KEY-----
+EOM
+    cat > /etc/salt/minion.d/rr_minion.conf  <<- EOM
+master: gamaster.apps.rapyuta.io
+id: 8a152e12-342f-4773-8ffd-fc097121bde2
+grains:
+  device_name: rrch13
+  tenant_id: PROJECT-project-fycsplhkhcymtvsmhjadjlae
+  emqtt_server: ssl://gaemqtt.apps.rapyuta.io:443
+  emqtt_password: K1ROKIZN7IC3
+
+startup_states: 'highstate'
+ext_job_cache: 'highstate_complete'
+
+log_level_logfile: debug
+
+# reconnect configuration
+master_tries: -1
+auth_tries: 10
+ping_interval: 60
+
+retry_dns: 0
+
+#tcp keepalive
+tcp_keepalive: True
+tcp_keepalive_idle: 30
+tcp_keepalive_cnt: 3
+tcp_keepalive_intvl: 10
+EOM
+    sed -i "/device_name:.*/a \ \ user: $(whoami)" /etc/salt/minion.d/rr_minion.conf
+}
+
+function install_python_deps () {
+  deps=""
+  case "$CPUARCH" in
+  "$CPUARCH_AMD64")
+    deps="$CRYPTO_AMD64_WHL $CFFI_AMD64_WHL $PYCRYPTO_AMD64_WHL $ZMQ_AMD64_WHL"
+    ;;
+  "$CPUARCH_ARM64")
+    deps="$CRYPTO_ARM64_WHL $CFFI_ARM64_WHL $PYCRYPTO_ARM64_WHL $ZMQ_ARM64_WHL"
+    ;;
+  "$CPUARCH_ARM32")
+    deps="$CRYPTO_ARM32_WHL $CFFI_ARM32_WHL $PYCRYPTO_ARM32_WHL $ZMQ_ARM32_WHL"
+    ;;
+  esac
+  # lock pip version for salt. lock pyopenssl for cryptography wheel.
+  deps="$deps pip==8.1.1 pyopenssl==0.15.1 $SALT_WHL python-dateutil==2.4.2 pyros-setup==0.3.0
+  setuptools==43.0.0"
+  # all deps must be resolved together, ergo single pip command. deps must be separated by spaces.
+  run_command pip install $deps
+}
+
+function install_salt() {
+  rm -rf /etc/salt/ > /tmp/install_log 2>&1
+  print_progress_bar 15
+  install_python_deps
+  print_progress_bar 40
+  install_salt_service
+  print_progress_bar 45
+  add_salt_config_and_keys
+  remove_grains
+  print_progress_bar 50
+}
+
+function init_venv() {
+  print_progress_bar 10
+  rm -rf "$RAPYUTA_VENV"
+  # putting LC_ALL=C to stop older pip versions from failing in case of invalid LC_ALL set by user
+  LC_ALL=C run_command virtualenv -p "$PYTHON" --always-copy "$RAPYUTA_VENV"
+  source "$RAPYUTA_VENV_ACT"
+}
+
+function deinit_venv() {
+  # turn on global site-packages in venv; cloud_bridge and dm_client need to use rospy.
+  # doing this here instead of using `--system-site-packages` because pip fails in some cases where system has
+  # incompatible pyopenssl version.
+  run_command rm "$RAPYUTA_VENV"/lib/python2.7/no-global-site-packages.txt
+}
+
+function start_rapyuta_agent() {
+  ## Restart salt minion
+  log_command systemctl daemon-reload
+  add_timing_grains
+  update_grains
+  log_command systemctl restart rapyuta-agent
+  log_command systemctl enable rapyuta-agent
+  systemctl status rapyuta-agent 1>> /dev/null 2>> /dev/null
+  if [ $? -ne 0 ] ; then
+    echo 'Unable to start the agent, check install logs at /var/log/rapyuta_install_log and error logs at /var/log/rapyuta_error_log'
+    exit -1;
+  fi
+}
+
+function check_if_closedbeta_rapyuta() {
+  if [ -f /etc/salt/minion.d/rr_minion.conf ]; then
+    cat /etc/salt/minion.d/rr_minion.conf | grep -qe '^master: *closed-betamaster\.cb01\.rapyuta\.io'
+    if [ $? -eq 0 ]; then
+      echo "Older installation found on device. It must be removed before running this script."
+      echo "Please uninstall it with the command: rapyuta-agent-uninstall"
+      echo "If the above command is not available on your system please run: curl https://storage.googleapis.com/artifacts.rapyuta.io/closedbeta-rapyuta-agent-uninstall | bash"
+      echo "Retry again after removing the older installation."
+      exit -1
+    fi
+  fi
+}
+
+#Start
+run_as_sudoer
+if [[ $(check_init_manger systemd) == 0 ]]; then
+  echo -ne "This device doesn't support systemd \n\n"
+  exit -1;
+fi
+
+check_if_closedbeta_rapyuta
+check_running_deployment
+
+while getopts ":r:w:d:" OPTION
+do
+  case $OPTION in
+    r)
+      RUNTIME=$OPTARG
+      ROSDISTRO="kinetic"
+      ;;
+    w)
+      CATKIN_WS=$OPTARG
+      ;;
+    d)
+      ROSDISTRO=$OPTARG
+      ;;
+  esac
+done
+
+if [[ "$RUNTIME" == "dockercompose" ]]; then
+  add_grains "ros_distro" $ROSDISTRO
+fi
+
+case $RUNTIME in
+	dockercompose)
+		jobs+=("install_docker_runtime")
+        add_grains "runtime" $RUNTIME
+        add_rapyuta_image_token_in_grain
+		;;
+	preinstalled)
+		add_grains "runtime" $RUNTIME
+		;;
+	*)
+		echo "Invalid runtime"
+        exit -1
+		;;
+esac
+jobs+=("deinit_venv")
+
+validate_and_set_cpuarch
+validate_and_set_docker_version
+validate_and_set_python
+set_ros_workspace
+
+echo -ne '\n'
+echo "Installing the Rapyuta Platform"
+echo -ne '\n'
+print_progress_bar 0
+run_jobs
+start_rapyuta_agent
+print_progress_bar 100
+echo -ne '\n'
+echo "Rapyuta Agent Installed! Install logs at /var/log/rapyuta_install_log and error logs at /var/log/rapyuta_error_log"
+echo "Took $TOTAL_INSTALL_TIME sec to complete" >> $INSTALL_LOG_FILE
