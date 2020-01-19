@@ -3,7 +3,9 @@
   <arg name="load_common_param" default="true" doc="this param in the either sim.launch or app.launch should be true"/>
 
   <arg name="gazebo" default="true"/>  
-  <arg name="fake_execution" default="false" />
+  <arg name="fake_execution" default="true" unless="$(arg gazebo)" />
+  <arg name="fake_execution" default="false" if="$(arg gazebo)" />
+
   <arg name="debug" default="false"/>
   <arg name="info" default="false"/>
 

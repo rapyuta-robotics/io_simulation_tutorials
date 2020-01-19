@@ -9,11 +9,13 @@
 <launch>
   <arg name="sim" default="true"/>
   
-  <arg name="gazebo" default="false"/>
+  <arg name="gazebo" default="$(arg sim)"/>
   <arg name="gazebo_gui" default="true"/>
   <arg name="gazebo_paused" default="false"/>
   
-  <arg name="fake_execution" default="$(arg sim)" />
+  <arg name="fake_execution" default="true" unless="$(arg gazebo)" />
+  <arg name="fake_execution" default="false" if="$(arg gazebo)" />
+
   <arg name="debug" default="false"/>
   <arg name="info" default="false"/>
   <arg name="use_gui" default="false"/>
