@@ -4,7 +4,7 @@
   
   <arg name="gazebo" default="true"/>
   <arg name="gazebo_gui" default="true"/>
-  <arg name="gazebo_paused" default="false"/>  
+  <arg name="gazebo_paused" default="true"/>  
   <arg name="use_gui" default="false"/>
 
   <!-- Load the URDF, SRDF and other .yaml configuration files on the param server -->
