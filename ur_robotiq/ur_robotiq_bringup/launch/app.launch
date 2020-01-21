@@ -1,11 +1,14 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="load_common_param" default="true" doc="this param in the either sim.launch or app.launch should be true"/>
+  <arg name="use_rapyuta.io" default="false"/>
+  <arg name="robot_name" default="$(optenv ROBOT_NAME turtle0)"/>
+  <arg name="namespace" default="/$(arg robot_name)"/>
+
 
   <arg name="sim" default="true"/>
   <arg name="gazebo" default="$(arg sim)"/>
   <arg name="fake_execution" default="$(eval sim and not gazebo)" />
-
   <arg name="debug" default="false"/>
   <arg name="info" default="false"/>
 

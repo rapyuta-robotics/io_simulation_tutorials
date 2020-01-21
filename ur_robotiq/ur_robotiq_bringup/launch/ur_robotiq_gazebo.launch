@@ -2,7 +2,11 @@
 <launch>
   <arg name="paused" default="false" doc="Starts gazebo in paused mode" />
   <arg name="gui" default="true" doc="Starts gazebo gui" />
-  
+  <arg name="robot_name" default="" />
+  <arg name="namespace" default="/$(arg robot_name)" />
+  <arg name="model_arg" default="-model $(arg robot_name)" unless="$(eval robot_name=='')" />
+  <arg name="model_arg" default="-model robot" if="$(eval robot_name=='')" />
+
   <!-- startup simulated world -->
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
     <arg name="use_sim_time" value="true"/>
@@ -10,9 +14,10 @@
     <arg name="paused" value="$(arg paused)"/>
     <arg name="gui" value="$(arg gui)"/>
   </include>
-  <!-- push robot_description to factory and spawn robot in gazebo -->
+  
+  <!-- push robot_description to factory and spawn robot in gazebo -->  
   <node name="spawn_gazebo_model" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" 
-  args="-urdf -param robot_description -model robot 
+  args="-urdf -param robot_description $(arg model_arg) -robot_namespace $(arg namespace)
         -z 0.0
         -J elbow_joint -1.5 
         -J shoulder_lift_joint -1.5707 
@@ -23,19 +28,45 @@
         "
   />
 
-  <include file="$(find ur_gazebo)/launch/controller_utils.launch"/>
+  <!-- Robot state publisher -->
+  <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher">
+    <param name="publish_frequency" type="double" value="50.0" />
+  </node>
+
+  <!-- Fake Calibration -->
+  <node pkg="rostopic" type="rostopic" name="fake_joint_calibration"
+        args="pub /calibrated std_msgs/Bool true" />
+   
 
   <!-- start this controller -->
-  <rosparam file="$(find ur_gazebo)/controller/arm_controller_ur3.yaml" command="load"/>
-  <node name="arm_controller_spawner" pkg="controller_manager" type="controller_manager" respawn="false" output="screen" args="spawn arm_controller" />
+  <rosparam file="$(find ur_gazebo)/controller/arm_controller_ur3.yaml" command="load" ns="$(arg namespace)"/>
+  <node name="arm_controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" args="--namespace=$(arg namespace) arm_controller" />
+
+  <!-- joint_state_controller -->
+  <rosparam file="$(find ur_gazebo)/controller/joint_state_controller.yaml" command="load" ns="$(arg namespace)"/>
+  <node name="joint_state_controller_spawner" pkg="controller_manager" type="spawner" args=" --namespace=$(arg namespace) joint_state_controller" respawn="false" output="screen"/>
+
+  <!-- gripper controllers -->
+  <rosparam file="$(find ur_robotiq_bringup)/config/robotiq_controllers.yaml" command="load" ns="$(arg namespace)"/>
+  <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" 
+    args=" --namespace=$(arg namespace) robotiq_2f_85_position_controller"/>
 
   <!-- load other controllers -->
   <!-- <node name="ros_control_controller_manager" pkg="controller_manager" type="controller_manager" respawn="false" output="screen" args="load joint_group_position_controller" /> -->
 
+<!--   <node pkg="topic_tools" type="relay" name="relay_joint_states" args="$(arg robot_name)/joint_states /joint_states"/>
+  <node pkg="topic_tools" type="relay" name="relay_arm_controller_feedback" args="$(arg robot_name)/arm_controller/follow_joint_trajectory/feedback /arm_controller/follow_joint_trajectory/feedback"/>
+  <node pkg="topic_tools" type="relay" name="relay_arm_controller_result" args="$(arg robot_name)/arm_controller/follow_joint_trajectory/result /arm_controller/follow_joint_trajectory/result"/>
+  <node pkg="topic_tools" type="relay" name="relay_arm_controller_status" args="$(arg robot_name)/arm_controller/follow_joint_trajectory/status /arm_controller/follow_joint_trajectory/status"/>
 
-  <!-- gripper controllers -->
-  <rosparam file="$(find ur_robotiq_bringup)/config/robotiq_controllers.yaml" command="load"/>
-  <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" 
-    args="robotiq_2f_85_position_controller"/>
+  <node pkg="topic_tools" type="relay" name="relay_arm_controlle_goal" args="/arm_controller/follow_joint_trajectory/goal $(arg robot_name)/arm_controller/follow_joint_trajectory/goal"/>
+  <node pkg="topic_tools" type="relay" name="relay_arm_controller_cancel" args="/arm_controller/follow_joint_trajectory/cancel $(arg robot_name)/arm_controller/follow_joint_trajectory/cancel"/>
+
+ -->
+<!--   <node pkg="topic_tools" type="relay" name="relay_arm_controller_state" args="/arm_controller/state $(arg robot_name)/arm_controller/state"/>
+  <node pkg="topic_tools" type="relay" name="relay_arm_controller_command" args="/arm_controller/command $(arg robot_name)/arm_controller/command"/>
+
+  <node pkg="topic_tools" type="relay" name="relay_robotiq_controller" args="$(arg robot_name)/robotiq_2f_85_position_controller/gripper_cmd /robotiq_2f_85_position_controller/gripper_cmd"/> -->
+
 
 </launch>
