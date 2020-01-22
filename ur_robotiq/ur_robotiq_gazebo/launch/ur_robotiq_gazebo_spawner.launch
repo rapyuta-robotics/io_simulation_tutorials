@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="paused" default="false" doc="Starts gazebo in paused mode" />
+  <arg name="gui" default="true" doc="Starts gazebo gui" />
+  <arg name="robot_name" default="" />
+  <arg name="namespace" default="/$(arg robot_name)" />
+  <arg name="model_arg" default="-model $(arg robot_name)" unless="$(eval robot_name=='')" />
+  <arg name="model_arg" default="-model robot" if="$(eval robot_name=='')" />
+
+  <arg name="x_pos" default="0.0"/>
+  <arg name="y_pos" default="0.0"/>
+  <arg name="yaw"   default="0.0"/>
+
+  <!-- push robot_description to factory and spawn robot in gazebo -->  
+  <node name="spawn_gazebo_model" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" 
+  args="-urdf -param robot_description $(arg model_arg) -robot_namespace $(arg namespace)
+        -x $(arg x_pos)
+        -y $(arg y_pos)
+        -z 0.0
+        -Y $(arg yaw)
+        -J elbow_joint -1.5 
+        -J shoulder_lift_joint -1.5707 
+        -J shoulder_pan_joint 0 
+        -J wrist_1_joint -1.57 
+        -J wrist_2_joint 1.57 
+        -J wrist_3_joint 1.57 
+        "
+  />
+
+  <!-- start this controller -->
+  <node name="arm_controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" ns="$(arg namespace)" args="arm_controller" />
+
+  <!-- joint_state_controller -->
+  <node name="joint_state_controller_spawner" pkg="controller_manager" type="spawner" args=" --namespace=$(arg namespace) joint_state_controller" respawn="false" output="screen"/>
+
+  <!-- gripper controllers -->
+  <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" 
+    args=" --namespace=$(arg namespace) robotiq_2f_85_position_controller"/>
+
+  <!-- load other controllers -->
+  <!-- <node name="ros_control_controller_manager" pkg="controller_manager" type="controller_manager" respawn="false" output="screen" args="load joint_group_position_controller" /> -->
+
+</launch>

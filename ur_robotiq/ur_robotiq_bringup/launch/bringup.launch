@@ -8,7 +8,13 @@
 -->
 <launch>
   <arg name="sim" default="true"/>
-  
+
+  <arg name="robot_name" default="$(optenv ROBOT_NAME )"/>
+  <arg name="namespace" default="/$(arg robot_name)"/>
+  <arg name="x_pos" default="$(optenv X_POS 0.0)"/>
+  <arg name="y_pos" default="$(optenv Y_POS 0.0)"/>
+  <arg name="yaw"   default="$(optenv YAW 0.0)"/>
+
   <arg name="gazebo" default="$(arg sim)"/>
   <arg name="fake_execution" default="$(eval sim and not gazebo)" />
 
@@ -43,12 +49,10 @@
   <arg name="pick_and_place" default="true" />
   <arg name="rviz" default="true" />
 
-  <include if="$(arg sim)" file="$(find ur_robotiq_bringup)/launch/sim.launch">
+  <include if="$(arg gazebo)" file="$(find ur_robotiq_bringup)/launch/sim.launch">
     <arg name="load_common_param" value="true"/>
-    <arg name="gazebo" value="$(arg gazebo)"/>
-    <arg name="gazebo_gui" value="$(arg gazebo_gui)"/>
-    <arg name="gazebo_paused" value="$(arg gazebo_paused)"/>  
-    <arg name="use_gui" value="$(arg use_gui)"/>
+    <arg name="gui" value="$(arg gazebo_gui)"/>
+    <arg name="paused" value="$(arg gazebo_paused)"/>  
   </include>
 
   <include file="$(find ur_robotiq_bringup)/launch/app.launch">
@@ -57,6 +61,12 @@
     <arg name="fake_execution" value="$(arg fake_execution)" />
     <arg name="debug" value="$(arg debug)"/>
     <arg name="info" value="$(arg info)"/>
+
+    <arg name="robot_name" default="$(arg robot_name)" />
+    <arg name="namespace" default="$(arg namespace)" />
+    <arg name="x_pos" default="$(arg x_pos)"/>
+    <arg name="y_pos" default="$(arg y_pos)"/>
+    <arg name="yaw"   default="$(arg yaw)"/>
 
     <!-- robot_ip: IP-address of the robot's socket-messaging server -->
     <arg name="robot_ip" value="$(arg robot_ip)"/>

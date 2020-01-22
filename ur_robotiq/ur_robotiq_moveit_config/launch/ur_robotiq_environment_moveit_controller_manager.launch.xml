@@ -1,5 +1,7 @@
 <launch>
-  <rosparam file="$(find ur3_moveit_config)/config/controllers.yaml"/>
+  <arg name="robot_name" default="" />
+  <rosparam file="$(find ur_robotiq_moveit_config)/config/controllers.yaml"/>
+  <rosparam file="$(find ur_robotiq_moveit_config)/config/controllers_$(arg robot_name).yaml" if="$(eval arg('robot_name') != '' )"/>
   <param name="use_controller_manager" value="false"/>
   <param name="trajectory_execution/execution_duration_monitoring" value="false"/>
   <param name="moveit_controller_manager" value="moveit_simple_controller_manager/MoveItSimpleControllerManager"/>

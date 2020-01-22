@@ -2,31 +2,19 @@
 <launch>
   <arg name="load_common_param" default="true" doc="this param in the either sim.launch or app.launch should be true"/>
   
-  <arg name="gazebo" default="true"/>
-  <arg name="gazebo_gui" default="true"/>
-  <arg name="gazebo_paused" default="true"/>  
-  <arg name="use_gui" default="false"/>
-
+  <arg name="gui" default="true"/>
+  <arg name="paused" default="true"/>  
+  
   <!-- Load the URDF, SRDF and other .yaml configuration files on the param server -->
   <include if="$(arg load_common_param)" file="$(find ur_robotiq_bringup)/launch/common.launch">
-    <arg name="gazebo" value="$(arg gazebo)"/>
+    <arg name="gazebo" value="true"/>
   </include>
 
-  <group unless="$(arg gazebo)">
-    <!-- We do not have a robot connected, so publish fake joint states -->
-    <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
-      <param name="use_gui" value="$(arg use_gui)"/>
-      <rosparam param="source_list">[move_group/fake_controller_joint_states]</rosparam>
-    </node>
-
-    <!-- Given the published joint states, publish tf for the robot links -->
-    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="true" output="screen" />
-  </group>
-  <group if="$(arg gazebo)">
-    <include file="$(find ur_robotiq_bringup)/launch/ur_robotiq_gazebo.launch">
-      <arg name="gui" value="$(arg gazebo_gui)"/>
-      <arg name="paused" value="$(arg gazebo_paused)"/>
-    </include>
-  </group>
-
+  <!-- startup simulated world -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="use_sim_time" value="true"/>
+    <arg name="world_name" default="worlds/empty.world"/>
+    <arg name="paused" value="$(arg paused)"/>
+    <arg name="gui" value="$(arg gui)"/>
+  </include>
 </launch>

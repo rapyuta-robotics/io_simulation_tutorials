@@ -2,9 +2,11 @@
 <launch>
   <arg name="load_common_param" default="true" doc="this param in the either sim.launch or app.launch should be true"/>
   <arg name="use_rapyuta.io" default="false"/>
-  <arg name="robot_name" default="$(optenv ROBOT_NAME turtle0)"/>
+  <arg name="robot_name" default="$(optenv ROBOT_NAME ur3)"/>
   <arg name="namespace" default="/$(arg robot_name)"/>
-
+  <arg name="x_pos" default="$(optenv X_POS 0.0)"/>
+  <arg name="y_pos" default="$(optenv Y_POS 0.0)"/>
+  <arg name="yaw"   default="$(optenv YAW 0.0)"/>
 
   <arg name="sim" default="true"/>
   <arg name="gazebo" default="$(arg sim)"/>
@@ -39,6 +41,14 @@
   <arg name="pick_and_place" default="true" />
   <arg name="rviz" default="true" />
 
+  <include if="$(arg load_common_param)" file="$(find ur_robotiq_bringup)/launch/common.launch"/>
+
+  <!-- Load the URDF, SRDF and other .yaml configuration files on the param server -->
+  <include file="$(find ur_robotiq_moveit_config)/launch/planning_context.launch">
+    <arg name="load_robot_description" value="true"/>
+  </include>
+
+  <!-- Hardware Drivers -->
   <!-- Driver for real robot -->
   <include unless="$(arg sim)" file="$(find ur_modern_driver)/launch/ur_common.launch">
     <arg name="robot_ip" value="$(arg robot_ip)"/>
@@ -59,6 +69,7 @@
     <arg name="tool_frame" value="$(arg tool_frame)" />
     <arg name="shutdown_on_disconnect" value="$(arg shutdown_on_disconnect)"/>
   </include>
+
   <!-- Robotiq Hand -->
   <node if="$(arg robotiq)" name="robotiq_control"  pkg="robotiq_2f_gripper_control" type="Robotiq2FGripperRtuNode.py" args=" $(arg robotiq_device)" output="screen">
   </node>
@@ -68,16 +79,50 @@
     <arg name="use_point_cloud" value="true" />
   </include>
 
+  <!-- Motion planning and Simulations -->
+  <!-- joint state publisher for Fake controller or Gazebo spawner  -->
+  <group unless="$(arg gazebo)">
+    <!-- We do not have a robot connected, so publish fake joint states -->
+    <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+      <rosparam param="source_list">[move_group/fake_controller_joint_states]</rosparam>
+    </node>
+  </group>
+  <group if="$(arg gazebo)">
+    <include file="$(find ur_robotiq_gazebo)/launch/ur_robotiq_gazebo_spawner.launch">
+      <arg name="robot_name" default="$(arg robot_name)" />
+      <arg name="namespace" default="$(arg namespace)" />
+      <arg name="x_pos" default="$(arg x_pos)"/>
+      <arg name="y_pos" default="$(arg y_pos)"/>
+      <arg name="yaw"   default="$(arg yaw)"/>
+    </include>
+  
+    <include file="$(find ur_robotiq_gazebo)/launch/ur_robotiq_gazebo_spawn_params.launch">
+      <arg name="robot_name" default="$(arg robot_name)" />
+      <arg name="namespace" default="$(arg namespace)" />
+    </include>  
+  </group>
+
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="true" output="screen" />
 
   <!-- Run the main MoveIt! executable without trajectory execution (we do not have controllers configured by default) -->
-  <include if="$(arg moveit)" file="$(find ur_robotiq_bringup)/launch/motion_planning.launch">
-    <arg name="load_common_param" value="$(arg load_common_param)"/>
-    <arg name="gazebo" value="$(arg gazebo)"/>
+  <remap if="$(arg gazebo)" from="/follow_joint_trajectory" to="/arm_controller/follow_joint_trajectory"/>
+  <include file="$(find ur_robotiq_moveit_config)/launch/move_group.launch">
+    <arg name="robot_name" default="$(arg robot_name)" unless="$(arg use_rapyuta.io)"/>
+    <arg name="allow_trajectory_execution" value="true"/>
     <arg name="fake_execution" value="$(arg fake_execution)"/>
     <arg name="info" value="$(arg info)"/>
     <arg name="debug" value="$(arg debug)"/>
   </include>
 
+  <!-- Fake Calibration -->
+  <node pkg="rostopic" type="rostopic" name="fake_joint_calibration"
+        args="pub /calibrated std_msgs/Bool true" />
+
+  <!-- If needed, broadcast static tf for robot root -->
+  <node pkg="tf" type="static_transform_publisher" name="virtual_joint_broadcaster_0" args="0 0 0 0 0 0 world ur_robotiq_environment 100" />
+
+
+  <!-- Other applications -->
   <!-- Run pick and place action server  -->
   <include if="$(arg pick_and_place)" file="$(find ur_robotiq_app)/launch/pick_and_place_action_server.launch">
     <arg name="gazebo" value="$(arg gazebo)"/>
@@ -86,5 +131,7 @@
 
   <!-- Launch visualizer -->
   <include if="$(arg rviz)" file="$(find ur_robotiq_bringup)/launch/rviz.launch"/>
+
+  <node pkg="topic_tools" type="relay" name="relay_joint_states" args="$(arg robot_name)/joint_states /joint_states" if="$(eval arg('robot_name') != '')"/>
 
 </launch>

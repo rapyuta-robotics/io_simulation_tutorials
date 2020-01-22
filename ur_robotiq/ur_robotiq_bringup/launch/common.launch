@@ -1,11 +1,6 @@
 <launch>  
   <arg name="gazebo" default="true" />
 
-  <!-- Load the URDF, SRDF and other .yaml configuration files on the param server -->
-  <include file="$(find ur_robotiq_moveit_config)/launch/planning_context.launch">
-    <arg name="load_robot_description" value="true"/>
-  </include>
-
   <!-- sample parameter which are loaded in both app and sim-->
   <rosparam if="$(arg gazebo)" file="$(find io_gazebo_turtlebot_bringup)/config/common_config.yaml" command="load" ns="/" />
 </launch>

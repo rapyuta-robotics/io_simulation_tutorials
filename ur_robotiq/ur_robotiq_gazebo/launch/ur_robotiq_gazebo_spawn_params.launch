@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="robot_name" default="" />
+  <arg name="namespace" default="/$(arg robot_name)" />
+
+  <!-- start this controller -->
+  <rosparam file="$(find ur_gazebo)/controller/arm_controller_ur3.yaml" command="load" ns="$(arg namespace)"/>
+
+  <!-- joint_state_controller -->
+  <rosparam file="$(find ur_gazebo)/controller/joint_state_controller.yaml" command="load" ns="$(arg namespace)"/>
+
+  <!-- gripper controllers -->
+  <rosparam file="$(find ur_robotiq_bringup)/config/robotiq_controllers.yaml" command="load" ns="$(arg namespace)"/>
+
+</launch>
