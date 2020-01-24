@@ -3,7 +3,10 @@
   <arg name="robot_name" default="" />
   <arg name="namespace" default="/$(arg robot_name)" />
 
-  <!-- start this controller -->
+  <!-- Load universal robot description format (URDF) -->
+  <param name="$(arg namespace)/robot_description" command="xacro --inorder  '$(find ur_robotiq_description)/urdf/ur_robotiq.urdf.xacro'"/>
+
+  <!-- robot arm controller -->
   <rosparam file="$(find ur_gazebo)/controller/arm_controller_ur3.yaml" command="load" ns="$(arg namespace)"/>
 
   <!-- joint_state_controller -->
