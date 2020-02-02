@@ -1,9 +1,10 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="load_common_param" default="true" doc="this param in the either sim.launch or app.launch should be true"/>
-  <arg name="use_rapyuta.io" default="false"/>
-  <arg name="robot_name" default="$(optenv ROBOT_NAME ur3)"/>
-  <arg name="namespace" default="/$(arg robot_name)"/>
+  <arg name="use_rapyuta.io" default="false" doc="use rapyuta.io to get robot name"/>
+  <rosparam param="use_rapyuta_io" subst_value="True">$(arg use_rapyuta.io)</rosparam>
+
+  <arg name="robot_name" default="$(optenv ROBOT_NAME )"/>
   <arg name="x_pos" default="$(optenv X_POS 0.0)"/>
   <arg name="y_pos" default="$(optenv Y_POS 0.0)"/>
   <arg name="yaw"   default="$(optenv YAW 0.0)"/>
@@ -38,7 +39,7 @@
   <arg name="robotiq" default="false" />
   <arg name="robotiq_device" default="/dev/ttyUSB0" />
   <arg name="camera" default="false" />
-  <arg name="pick_and_place" default="true" />
+  <arg name="pick_and_place" default="false" />
   <arg name="rviz" default="true" />
 
   <include if="$(arg load_common_param)" file="$(find ur_robotiq_bringup)/launch/common.launch"/>
@@ -90,7 +91,6 @@
   <group if="$(arg gazebo)">
     <include file="$(find ur_robotiq_gazebo)/launch/ur_robotiq_gazebo_spawner.launch">
       <arg name="robot_name" default="$(arg robot_name)" />
-      <arg name="namespace" default="$(arg namespace)" />
       <arg name="x_pos" default="$(arg x_pos)"/>
       <arg name="y_pos" default="$(arg y_pos)"/>
       <arg name="yaw"   default="$(arg yaw)"/>
@@ -98,16 +98,15 @@
   
     <include file="$(find ur_robotiq_gazebo)/launch/ur_robotiq_gazebo_spawn_params.launch">
       <arg name="robot_name" default="$(arg robot_name)" />
-      <arg name="namespace" default="$(arg namespace)" />
     </include>  
   </group>
 
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="true" output="screen" />
 
   <!-- Run the main MoveIt! executable without trajectory execution (we do not have controllers configured by default) -->
-  <remap if="$(arg gazebo)" from="/follow_joint_trajectory" to="/arm_controller/follow_joint_trajectory"/>
+  <!-- <remap if="$(arg gazebo)" from="/follow_joint_trajectory" to="/arm_controller/follow_joint_trajectory"/> -->
   <include file="$(find ur_robotiq_moveit_config)/launch/move_group.launch">
-    <arg name="robot_name" default="$(arg robot_name)" unless="$(arg use_rapyuta.io)"/>
+    <arg name="robot_name" default="$(arg robot_name)" />
     <arg name="allow_trajectory_execution" value="true"/>
     <arg name="fake_execution" value="$(arg fake_execution)"/>
     <arg name="info" value="$(arg info)"/>
@@ -133,5 +132,7 @@
   <include if="$(arg rviz)" file="$(find ur_robotiq_bringup)/launch/rviz.launch"/>
 
   <node pkg="topic_tools" type="relay" name="relay_joint_states" args="$(arg robot_name)/joint_states /joint_states" if="$(eval arg('robot_name') != '')"/>
+
+  <node name="load_common_param_client" pkg="ur_robotiq_gazebo" type="load_param_client.py" output="screen" if="$(arg use_rapyuta.io)"/>
 
 </launch>

@@ -28,13 +28,13 @@
   />
 
   <!-- start this controller -->
-  <node name="arm_controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" ns="$(arg namespace)" args="arm_controller" />
+  <node name="arm_controller_spawner" pkg="controller_manager" type="spawner" respawn="true" output="screen" ns="$(arg namespace)" args="arm_controller" />
 
   <!-- joint_state_controller -->
-  <node name="joint_state_controller_spawner" pkg="controller_manager" type="spawner" args=" --namespace=$(arg namespace) joint_state_controller" respawn="false" output="screen"/>
+  <node name="joint_state_controller_spawner" pkg="controller_manager" type="spawner" args=" --namespace=$(arg namespace) joint_state_controller" respawn="true" output="screen"/>
 
   <!-- gripper controllers -->
-  <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" 
+  <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="true" output="screen" 
     args=" --namespace=$(arg namespace) robotiq_2f_85_position_controller"/>
 
   <!-- load other controllers -->
