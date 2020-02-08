@@ -10,7 +10,6 @@
   <arg name="sim" default="true"/>
 
   <arg name="robot_name" default="$(optenv ROBOT_NAME )"/>
-  <arg name="namespace" default="/$(arg robot_name)"/>
   <arg name="x_pos" default="$(optenv X_POS 0.0)"/>
   <arg name="y_pos" default="$(optenv Y_POS 0.0)"/>
   <arg name="yaw"   default="$(optenv YAW 0.0)"/>
@@ -63,7 +62,6 @@
     <arg name="info" value="$(arg info)"/>
 
     <arg name="robot_name" default="$(arg robot_name)" />
-    <arg name="namespace" default="$(arg namespace)" />
     <arg name="x_pos" default="$(arg x_pos)"/>
     <arg name="y_pos" default="$(arg y_pos)"/>
     <arg name="yaw"   default="$(arg yaw)"/>

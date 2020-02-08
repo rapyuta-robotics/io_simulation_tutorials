@@ -1,7 +1,9 @@
 <launch>
   <arg name="robot_name" default="" />
   <rosparam file="$(find ur_robotiq_moveit_config)/config/controllers.yaml"/>
-  <rosparam file="$(find ur_robotiq_moveit_config)/config/controllers_$(arg robot_name).yaml" if="$(eval arg('robot_name') != '' )"/>
+  <!-- <rosparam file="$(find ur_robotiq_moveit_config)/config/controllers_$(arg robot_name).yaml" if="$(eval arg('robot_name') != '' )"/> -->
+  <node name="add_namespace_to_controller_list" pkg="ur_robotiq_moveit_config" type="add_namespace_to_controller_list.py" respawn="false" output="screen" args="$(arg robot_name)" if="$(eval arg('robot_name') != '' )" />
+
   <param name="use_controller_manager" value="false"/>
   <param name="trajectory_execution/execution_duration_monitoring" value="false"/>
   <param name="moveit_controller_manager" value="moveit_simple_controller_manager/MoveItSimpleControllerManager"/>

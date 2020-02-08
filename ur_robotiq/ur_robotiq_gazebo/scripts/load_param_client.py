@@ -7,10 +7,8 @@ from ur_robotiq_gazebo.srv import LoadParam, LoadParamRequest
 rospy.init_node("load_client")
 rospy.loginfo("Load client node started")
 
-rospy.logfatal('Load common param')
 rospy.wait_for_service('load_common_param')
 client = rospy.ServiceProxy('load_common_param', LoadParam)
-rospy.logfatal('Load common param')
 
 req = LoadParamRequest()
 req.robot_name = get_robot_name()

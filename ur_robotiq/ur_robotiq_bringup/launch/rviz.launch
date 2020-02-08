@@ -1,6 +1,8 @@
 <?xml version="1.0"?>
 <launch>
-  <node  name="$(anon rviz)"  pkg="rviz" type="rviz" respawn="false"
-    args="-d $(find ur_robotiq_app)/config/demo.rviz" output="screen">
-  </node>
+  <arg name="namespace" default="/"/>
+  <group ns="$(arg namespace)">
+	  <node  name="$(anon rviz)"  pkg="rviz" type="rviz" respawn="false"
+	    args="-d $(find ur_robotiq_app)/config/demo.rviz" output="screen"/>
+  </group>
 </launch>
