@@ -1,6 +1,6 @@
 [submodule "motoman"]
 	path = motoman
-	url = git@github.com:rapyuta-robotics/motoman.git
+	url = https://github.com/rapyuta-robotics/motoman.git
 [submodule "rosparam_expose"]
 	path = rosparam_expose
-	url = git@github.com:shivamMg/rosparam_expose.git
+	url = https://github.com/shivamMg/rosparam_expose.git
