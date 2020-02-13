@@ -18,5 +18,6 @@
     <arg name="gui" value="$(arg gui)"/>
   </include>
 
-  <node pkg="ur_robotiq_gazebo" type="load_param_server.py" name="load_common_param_server" if="$(arg use_rapyuta.io)" />
+  <!-- <node pkg="ur_robotiq_gazebo" type="load_param_server.py" name="load_common_param_server" if="$(arg use_rapyuta.io)" /> -->
+  <include file="$(find rosparam_expose)/launch/server.launch"/>
 </launch>
