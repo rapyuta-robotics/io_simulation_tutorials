@@ -135,7 +135,7 @@
 
 <!--   <node name="load_common_param_client" pkg="ur_robotiq_gazebo" type="load_param_client.py" output="screen" if="$(arg use_rapyuta.io)"/> -->
 <group if="$(arg use_rapyuta.io)">
-   <node name="load_robot_urdf" pkg="rosparam_expose" type="load_xacro_example"
+  <node name="load_robot_urdf" pkg="rosparam_expose" type="load_xacro_example"
         args="$(find ur_robotiq_description)/urdf/ur_robotiq.urdf.xacro /$(arg robot_name)/robot_description" output="screen" />
   <node name="load_arm_controller_param" pkg="rosparam_expose" type="client" output="screen" args="load $(find ur_gazebo)/controller/arm_controller_ur3.yaml /$(arg robot_name)"/>
   <node name="load_joint_state_controller_param" pkg="rosparam_expose" type="client" output="screen" args="load $(find ur_gazebo)/controller/joint_state_controller.yaml /$(arg robot_name)"/>

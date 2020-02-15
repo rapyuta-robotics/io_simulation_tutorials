@@ -1,0 +1,94 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="load_common_param" default="true" doc="this param in the either sim.launch or app.launch should be true"/>
+  <arg name="use_rapyuta.io" default="false" doc="use rapyuta.io to get robot name"/>
+  <rosparam param="use_rapyuta_io" subst_value="True">$(arg use_rapyuta.io)</rosparam>
+
+  <arg name="robot_name" default="$(optenv ROBOT_NAME )"/>
+  <arg name="x_pos" default="$(optenv X_POS 0.0)"/>
+  <arg name="y_pos" default="$(optenv Y_POS 0.0)"/>
+  <arg name="yaw"   default="$(optenv YAW 0.0)"/>
+
+  <arg name="sim" default="true"/>
+  <arg name="gazebo" default="$(arg sim)"/>
+  <arg name="fake_execution" default="$(eval sim and not gazebo)" />
+  <arg name="debug" default="false"/>
+  <arg name="info" default="false"/>
+  <arg name="rviz" default="true" />
+
+  <!-- By default, use the urdf location provided from the package -->
+  <arg name="urdf_path" default="$(find motoman_hc10_moveit_config)/urdf/hc10.urdf"/>
+
+  <include if="$(arg load_common_param)" file="$(find ur_robotiq_bringup)/launch/common.launch"/>
+
+  <!-- Load the URDF, SRDF and other .yaml configuration files on the param server -->
+  <include file="$(find motoman_hc10_moveit_config)/launch/planning_context.launch">
+    <arg name="load_robot_description" value="false"/>
+  </include>
+
+
+  <!-- Motion planning and Simulations -->
+  <!-- joint state publisher for Fake controller or Gazebo spawner  -->
+  <group unless="$(arg gazebo)">
+    <!-- We do not have a robot connected, so publish fake joint states -->
+    <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+      <rosparam param="source_list">[move_group/fake_controller_joint_states]</rosparam>
+    </node>
+  </group>
+  <group if="$(arg gazebo)">
+    <arg name="model_arg" default="-model $(arg robot_name)" unless="$(eval robot_name=='')" />
+    <arg name="model_arg" default="-model robot" if="$(eval robot_name=='')" />
+    <param name="/$(arg robot_name)/robot_description" command="xacro --inorder  '$(find motoman_hc10_moveit_config)/urdf/hc10.urdf'"/>
+
+    <node name="spawn_gazebo_model" pkg="gazebo_ros" type="spawn_model" args="
+        -urdf -param robot_description 
+        $(arg model_arg) 
+        -robot_namespace /$(arg robot_name) 
+        -x $(arg x_pos)
+        -y $(arg y_pos)
+        -z 0.0
+        -Y $(arg yaw)"
+    respawn="false" output="screen" />
+
+    <!-- Load joint controller configurations from YAML file to parameter server -->
+    <rosparam file="$(find motoman_hc10_moveit_config)/config/ros_controllers.yaml" command="load" ns="/$(arg robot_name)"/>
+
+    <!-- Load the controllers -->
+    <node name="arm_robot_controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" ns="/$(arg robot_name)" args="arm_robot_trajectory_controller joint_state_controller"/>
+  </group>
+
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="true" output="screen" />
+
+  <!-- Run the main MoveIt! executable without trajectory execution (we do not have controllers configured by default) -->
+  <!-- <remap if="$(arg gazebo)" from="/follow_joint_trajectory" to="/arm_controller/follow_joint_trajectory"/> -->
+  <include file="$(find motoman_hc10_moveit_config)/launch/move_group.launch">
+    <arg name="robot_name" default="$(arg robot_name)" />
+    <arg name="allow_trajectory_execution" value="true"/>
+    <arg name="fake_execution" value="$(arg fake_execution)"/>
+    <arg name="info" value="$(arg info)"/>
+    <arg name="debug" value="$(arg debug)"/>
+  </include>
+
+  <!-- Run Rviz and load the default config to see the state of the move_group node -->
+  <include file="$(find motoman_hc10_moveit_config)/launch/moveit_rviz.launch" if="$(arg rviz)">
+    <arg name="rviz_config" value="$(find motoman_hc10_moveit_config)/launch/moveit.rviz"/>
+    <arg name="debug" value="$(arg debug)"/>
+  </include>
+
+  <!-- Fake Calibration -->
+  <node pkg="rostopic" type="rostopic" name="fake_joint_calibration"
+        args="pub /calibrated std_msgs/Bool true" />
+
+  <!-- If needed, broadcast static tf for robot root -->
+  <node pkg="tf" type="static_transform_publisher" name="virtual_joint_broadcaster_0" args="0 0 0 0 0 0 world ur_robotiq_environment 100" />
+
+  <node pkg="topic_tools" type="relay" name="relay_joint_states" args="$(arg robot_name)/joint_states /joint_states" if="$(eval arg('robot_name') != '')"/>
+
+<!--   <node name="load_common_param_client" pkg="ur_robotiq_gazebo" type="load_param_client.py" output="screen" if="$(arg use_rapyuta.io)"/> -->
+<group if="$(arg use_rapyuta.io)">
+  <node name="load_robot_urdf" pkg="rosparam_expose" type="load_xacro_example"
+        args="$(find motoman_hc10_moveit_config)/urdf/hc10.urdf /$(arg robot_name)/robot_description" output="screen" />
+  <node name="load_arm_controller_param" pkg="rosparam_expose" type="client" output="screen" args="load $(find motoman_hc10_moveit_config)/config/ros_controllers.yaml /$(arg robot_name)"/>
+</group>
+
+</launch>
