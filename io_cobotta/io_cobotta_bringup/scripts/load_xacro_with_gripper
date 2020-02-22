@@ -1,0 +1,20 @@
+#!/bin/bash
+
+if [ -z "$1" ]; then
+  echo Need xacro filepath
+  exit 1
+fi
+
+if [ -z "$2" ]; then
+  echo Need gripper name
+  exit 1
+fi
+
+if [ -z "$3" ]; then
+  echo Need parameter name
+  exit 1
+fi
+
+tmpfile=$(mktemp)
+rosrun xacro xacro "$1" "$2" | tee $tmpfile >/dev/null
+rosrun rosparam_expose client set "$3" --textfile $tmpfile

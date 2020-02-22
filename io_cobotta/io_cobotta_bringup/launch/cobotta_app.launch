@@ -1,0 +1,114 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="load_common_param" default="true" doc="this param in the either sim.launch or app.launch should be true"/>
+  <arg name="use_rapyuta.io" default="false" doc="use rapyuta.io to get robot name"/>
+  <rosparam param="use_rapyuta_io" subst_value="True">$(arg use_rapyuta.io)</rosparam>
+
+  <arg name="robot_name" default="$(optenv ROBOT_NAME cobotta)"/>
+  <arg name="x_pos" default="$(optenv X_POS 0.0)"/>
+  <arg name="y_pos" default="$(optenv Y_POS 0.0)"/>
+  <arg name="yaw"   default="$(optenv YAW 0.0)"/>
+
+  <arg name="sim" default="true"/>
+  <arg name="gazebo" default="$(arg sim)"/>
+  <arg name="fake_execution" default="$(eval sim and not gazebo)" />
+  <arg name="debug" default="false"/>
+  <arg name="info" default="false"/>
+  <arg name="rviz" default="true" />
+
+  <arg name="gripper_type" default="parallel"/>
+
+  <include if="$(arg load_common_param)" file="$(find ur_robotiq_bringup)/launch/common.launch"/>
+
+
+  <!-- Include files for real robot. -->
+  <group unless="$(arg sim)">
+    <!-- Files for denso_cobotta_driver node. -->
+    <include file="$(find denso_cobotta_driver)/launch/denso_cobotta_driver.launch">
+      <arg name="enable_calset" value="false" />
+    </include>
+
+    <!-- Files for denso_cobotta_control node. -->
+    <include file="$(find denso_cobotta_control)/launch/denso_cobotta_control.launch"/>
+
+    <!-- Files for denso_cobotta_gripper node. 
+      NOTE: Files are includes unless "gripper_type" is "none". 
+    -->
+    <group if="$(eval arg('gripper_type') != 'none')">
+      <include file="$(find denso_cobotta_gripper)/launch/denso_cobotta_gripper.launch">
+        <arg name="gripper_type" value="$(arg gripper_type)"/>
+      </include>
+    </group>
+  </group>
+
+  <!-- load the robot_description parameter before launching ROS-I nodes -->
+  <include file="$(find denso_cobotta_moveit_config)/launch/planning_context.launch" >
+    <arg name="load_robot_description" value="true" />
+    <arg name="gripper_type" value="$(arg gripper_type)"/>
+  </include>
+
+
+  <!-- Motion planning and Simulations -->
+  <!-- joint state publisher for Fake controller or Gazebo spawner  -->
+  <group unless="$(arg gazebo)">
+    <!-- We do not have a robot connected, so publish fake joint states -->
+    <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+      <rosparam param="source_list">[move_group/fake_controller_joint_states]</rosparam>
+    </node>
+  </group>
+  <group if="$(arg gazebo)">
+    <arg name="model_arg" default="-model $(arg robot_name)" unless="$(eval robot_name=='')" />
+    <arg name="model_arg" default="-model robot" if="$(eval robot_name=='')" />
+    <param name="/$(arg robot_name)/robot_description" command="xacro --inorder $(find denso_cobotta_descriptions)/cobotta_description/cobotta.urdf.xacro gripper_type:=$(arg gripper_type) "/>
+
+    <node name="spawn_gazebo_model" pkg="gazebo_ros" type="spawn_model" args="
+        -urdf -param robot_description 
+        $(arg model_arg) 
+        -robot_namespace /$(arg robot_name) 
+        -x $(arg x_pos)
+        -y $(arg y_pos)
+        -z 0.0
+        -Y $(arg yaw)"
+    respawn="false" output="screen" />
+
+    <!-- Load joint controller configurations from YAML file to parameter server -->
+    <rosparam file="$(find denso_cobotta_descriptions)/cobotta_description/denso_cobotta_control.yaml" command="load" />
+    <rosparam file="$(find denso_cobotta_descriptions)/cobotta_description/gazebo_cobotta_control.yaml" command="load"/>
+
+    <!-- Load the controllers -->
+    <node name="controller_spawner" pkg="controller_manager" ns="/$(arg robot_name)" type="spawner" args="joint_state_controller arm_controller" respawn="false" output="screen"/>
+
+  </group>
+
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="false" output="screen" required="true">
+    <remap from="/joint_states" to="/cobotta/joint_states" if="$(arg use_rapyuta.io)"/>
+  </node>
+
+  <!-- Run the main MoveIt! executable without trajectory execution (we do not have controllers configured by default) -->
+  <include file="$(find denso_cobotta_moveit_config)/launch/move_group.launch">
+    <!-- <arg name="robot_name" default="$(arg robot_name)" /> -->
+    <arg name="publish_monitored_planning_scene" value="true" />
+    <arg name="gripper_type" value="$(arg gripper_type)"/>
+    <arg name="allow_trajectory_execution" value="true"/>
+    <arg name="fake_execution" value="$(arg fake_execution)"/>
+    <arg name="info" value="$(arg info)"/>
+    <arg name="debug" value="$(arg debug)"/> 
+  </include>
+
+  <!-- Run Rviz and load the default config to see the state of the move_group node -->
+  <include file="$(find denso_cobotta_moveit_config)/launch/moveit_rviz.launch" if="$(arg rviz)">
+    <arg name="config" value="true"/>
+  </include>
+
+  <!-- temp till update deonso_cobotta_ros repo -->
+  <node pkg="topic_tools" type="relay" name="relay_joint_states" args="/joint_states　$(arg robot_name)/joint_states" if="$(eval arg('robot_name') != '')"/>
+
+<!--   <node name="load_common_param_client" pkg="ur_robotiq_gazebo" type="load_param_client.py" output="screen" if="$(arg use_rapyuta.io)"/> -->
+<group if="$(arg use_rapyuta.io)">
+  <node name="load_robot_urdf" pkg="io_cobotta_bringup" type="load_xacro_with_gripper"
+        args="$(find denso_cobotta_descriptions)/cobotta_description/cobotta.urdf.xacro gripper_type:=$(arg gripper_type) /$(arg robot_name)/robot_description" output="screen" />
+  <node name="load_arm_controller_param" pkg="rosparam_expose" type="client" output="screen" args="load $(find denso_cobotta_descriptions)/cobotta_description/denso_cobotta_control.yaml /"/>
+  <node name="load_joint_controller_param" pkg="rosparam_expose" type="client" output="screen" args="load $(find denso_cobotta_descriptions)/cobotta_description/gazebo_cobotta_control.yaml /"/>
+</group>
+
+</launch>

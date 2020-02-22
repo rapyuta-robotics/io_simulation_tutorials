@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="load_common_param" default="true" doc="this param in the either sim.launch or app.launch should be true"/>
+  <arg name="use_rapyuta.io" default="false"/>
+  <arg name="world_file"      default="$(optenv WORLD_FILE empty)"/>
+  <arg name="gui" default="true"/>
+  <arg name="paused" default="true"/>  
+  
+  <!-- startup simulated world -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="use_sim_time" value="true"/>
+    <arg name="world_name" default="worlds/$(arg world_file).world"/>
+    <arg name="paused" value="$(arg paused)"/>
+    <arg name="gui" value="$(arg gui)"/>
+  </include>
+
+  <!-- <node pkg="ur_robotiq_gazebo" type="load_param_server.py" name="load_common_param_server" if="$(arg use_rapyuta.io)" /> -->
+  <include file="$(find rosparam_expose)/launch/server.launch" if="$(arg use_rapyuta.io)"/>
+</launch>

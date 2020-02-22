@@ -1,11 +1,10 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(io_motoman_bringup)
+project(io_cobotta_bringup)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
 
 find_package(catkin REQUIRED COMPONENTS
-	# motoman
 )
 
 ###################################
@@ -14,10 +13,8 @@ find_package(catkin REQUIRED COMPONENTS
 
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES io_motoman
+#  LIBRARIES io_cobotta
  CATKIN_DEPENDS 
- # motoman
- # message_runtime
 #  DEPENDS system_lib
 )
 
@@ -34,7 +31,7 @@ include_directories(
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/io_motoman.cpp
+#   src/${PROJECT_NAME}/io_cobotta.cpp
 # )
 
 #############
@@ -77,7 +74,7 @@ include_directories(
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_io_motoman.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_io_cobotta.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

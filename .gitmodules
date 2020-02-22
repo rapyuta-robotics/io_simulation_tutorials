@@ -4,3 +4,6 @@
 [submodule "rosparam_expose"]
 	path = rosparam_expose
 	url = https://github.com/shivamMg/rosparam_expose.git
+[submodule "denso_cobotta_ros"]
+	path = denso_cobotta_ros
+	url = https://github.com/DENSORobot/denso_cobotta_ros.git
