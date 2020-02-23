@@ -101,7 +101,7 @@
   </include>
 
   <!-- temp till update deonso_cobotta_ros repo -->
-  <node pkg="topic_tools" type="relay" name="relay_joint_states" args="/joint_states　$(arg robot_name)/joint_states" if="$(eval arg('robot_name') != '')"/>
+  <node pkg="topic_tools" type="relay" name="relay_joint_states" args="/joint_states /$(arg robot_name)/joint_states" if="$(eval arg('robot_name') != '')"/>
 
 <!--   <node name="load_common_param_client" pkg="ur_robotiq_gazebo" type="load_param_client.py" output="screen" if="$(arg use_rapyuta.io)"/> -->
 <group if="$(arg use_rapyuta.io)">
