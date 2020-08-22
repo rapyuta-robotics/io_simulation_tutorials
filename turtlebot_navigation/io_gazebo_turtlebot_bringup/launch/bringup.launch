@@ -1,4 +1,6 @@
 <launch>
+  <arg name="gui" default="false" doc="start gazebo gui. should be true when used with rapyuta.io"/>
+  <arg name="rviz" default="true" doc="start rviz should be false when used with rapyuta.io"/>
   <arg name="model" default="$(optenv TURTLEBOT3_MODEL burger)" doc="turtlebot3 model type [burger, waffle, waffle_pi]"/>
 
   <!-- simulator -->
@@ -12,5 +14,6 @@
   <include file="$(find io_gazebo_turtlebot_bringup)/launch/app.launch">
     <arg name="load_common_param" value="false"/>
     <arg name="model" value="$(arg model)"/>
+    <arg name="rviz" value="$(arg rviz)"/>
   </include>
 </launch>

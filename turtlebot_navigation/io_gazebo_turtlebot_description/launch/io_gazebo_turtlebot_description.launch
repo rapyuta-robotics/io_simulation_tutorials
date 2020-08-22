@@ -1,0 +1,11 @@
+<launch>  
+  <arg name="model" default="$(optenv TURTLEBOT3_MODEL burger)" doc="turtlebot3 model type [burger, waffle, waffle_pi]"/>
+  <arg name="namespace" default="/" />
+
+  <group ns="$(arg namespace)">
+	  <!-- robot description which are used in app(robot_state_publisher and etc) and sim-->
+	  <param name="robot_description" command="$(find xacro)/xacro --inorder $(find turtlebot3_description)/urdf/turtlebot3_$(arg model).urdf.xacro "/>
+  </group>
+
+
+</launch>

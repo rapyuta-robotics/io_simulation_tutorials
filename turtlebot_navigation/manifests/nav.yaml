@@ -1,0 +1,160 @@
+{
+  "apiVersion": "1.0.0",
+  "name": "turtlebo_nav",
+  "packageVersion": "v1.0.4",
+  "description": "",
+  "bindable": true,
+  "plans": [
+    {
+      "name": "default",
+      "metadata": {
+        
+      },
+      "singleton": false,
+      "components": [
+        {
+          "name": "turtle",
+          "description": "",
+          "cloudInfra": {
+            "replicas": 1,
+            "endpoints": [
+              
+            ]
+          },
+          "ros": {
+            "topics": [
+              {
+                "name": "/amcl_pose",
+                "qos": "low",
+                "compression": "",
+                "scoped": true,
+                "targeted": false
+              },
+              {
+                "name": "/cmd_vel",
+                "qos": "low",
+                "compression": "",
+                "scoped": true,
+                "targeted": false
+              }
+            ],
+            "services": [
+              
+            ],
+            "actions": [
+              {
+                "name": "/move_base",
+                "compression": "",
+                "scoped": true
+              }
+            ],
+            "isROS": true,
+            "ros_distro": "melodic"
+          },
+          "requiredRuntime": "cloud",
+          "architecture": "amd64",
+          "executables": [
+            {
+              "name": "nav",
+              "simulationOptions": {
+                "simulation": false
+              },
+              "gitExecutable": {
+                "repository": "https://github.com/rapyuta-robotics/io_simulation_tutorials#multiple_turlte",
+                "strategyType": "Source",
+                "dockerFilePath": "",
+                "contextDir": ""
+              },
+              "buildOptions": {
+                "catkinOptions": [
+                  
+                ]
+              },
+              "cmd": [
+                "roslaunch io_gazebo_turtlebot_bringup app.launch  demo_app:=false use_rapyuta.io:=true"
+              ],
+              "limits": {
+                "cpu": 2,
+                "memory": 8192
+              }
+            }
+          ],
+          "parameters": [
+            {
+              "default": "burger",
+              "name": "TURTLEBOT3_MODEL",
+              "description": "turtlebot3 model type [burger, waffle, waffle_pi]"
+            },
+            {
+              "default": "turtle0",
+              "name": "ROBOT_NAME",
+              "description": "need to be same as alias"
+            },
+            {
+              "default": "-0.5",
+              "name": "X_POS",
+              "description": "initial x"
+            },
+            {
+              "default": "-0.5",
+              "name": "Y_POS",
+              "description": "initial y"
+            },
+            {
+              "default": "0.0",
+              "name": "YAW",
+              "description": "initial yaw"
+            }
+          ]
+        }
+      ],
+      "includePackages": [
+        
+      ],
+      "dependentDeployments": [
+        
+      ],
+      "inboundROSInterfaces": {
+        "topics": [
+          {
+            "name": "/initialpose",
+            "targeted": true
+          },
+          {
+            "name": "/cmd_vel",
+            "targeted": true
+          },
+          {
+            "name": "/tf",
+            "targeted": true
+          },
+          {
+            "name": "/joint_states",
+            "targeted": true
+          },
+          {
+            "name": "/imu",
+            "targeted": true
+          },
+          {
+            "name": "/scan",
+            "targeted": true
+          },
+          {
+            "name": "/odom",
+            "targeted": true
+          }
+        ],
+        "services": [
+          
+        ],
+        "actions": [
+          
+        ]
+      },
+      "exposedParameters": [
+        
+      ]
+    }
+  ]
+}

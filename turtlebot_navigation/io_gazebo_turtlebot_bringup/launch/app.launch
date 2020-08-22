@@ -1,22 +1,59 @@
 <launch>
   <arg name="load_common_param" default="true" doc="this param in the either sim.launch or app.launch should be true"/>
   <arg name="model" default="$(optenv TURTLEBOT3_MODEL burger)" doc="turtlebot3 model type [burger, waffle, waffle_pi]"/>
-  <arg name="spawn_model" default="$(optenv SPAWN_TURTLEBOT_MODEL true)"/>
-
+  <arg name="rviz" default="false"/>
+  
+  <arg name="use_rapyuta.io" default="false"/>
+  <arg name="robot_name" default="$(optenv RIO_ROS_ENV_ALIAS turtle0)"/>
+  <arg name="namespace" default="/$(arg robot_name)"/>
+  <arg name="x_pos" default="$(optenv X_POS -0.5)"/>
+  <arg name="y_pos" default="$(optenv Y_POS -0.5)"/>
+  <arg name="yaw"   default="$(optenv YAW 0.0)"/>
+  
+  <arg name="scan_topic" default="scan_amcl"/>
+  <arg name="demo_app" default="true"/>
+  
   <!-- load common param -->
-  <include if="$(arg load_common_param)" file="$(find io_gazebo_turtlebot_bringup)/launch/common.launch">
+  <include if="$(arg load_common_param)" file="$(find io_gazebo_turtlebot_bringup)/launch/common.launch"/>
+
+  <!-- load robot_description common param -->
+  <include file="$(find io_gazebo_turtlebot_description)/launch/io_gazebo_turtlebot_description.launch">
     <arg name="model" value="$(arg model)"/>
   </include>
 
+  <!-- spawn model -->
+  <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" args="-urdf -model turtlebot3_$(arg model) -x $(arg x_pos) -y $(arg y_pos) -Y $(arg yaw) -param robot_description  -model $(arg robot_name) -robot_namespace $(arg namespace)" />
+  
   <!-- navigation -->
   <include file="$(find io_gazebo_turtlebot_navigation)/launch/io_turtle_gazebo_navigation.launch">
     <arg name="model" value="$(arg model)"/>
+    <arg name="scan_topic" value="$(arg scan_topic)"/>
+    <arg name="x_pos" default="$(arg x_pos)"/>
+    <arg name="y_pos" default="$(arg y_pos)"/>
+    <arg name="yaw" default="$(arg yaw)"/>
   </include>
 
-  <!-- app -->
-  <node pkg="io_gazebo_turtlebot_demo_app" type="spawn_model.py" name="spawn_model" output="screen" if="$(arg spawn_model)"/>
-  <include file="$(find io_gazebo_turtlebot_demo_app)/launch/demo_app.launch">
+  <!-- app -->  
+  <include if="$(arg demo_app)" file="$(find io_gazebo_turtlebot_demo_app)/launch/demo_app.launch">
     <arg name="model" value="$(arg model)"/>
   </include>
+
+  <!-- rviz -->
+  <node pkg="rviz" type="rviz" name="$(anon rviz)" if="$(arg rviz)"
+        args="-d $(find turtlebot3_navigation)/rviz/turtlebot3_navigation.rviz"/>
+
+  <!-- namespace conversion. which is done by rapyuta.io -->
+  <group unless="$(arg use_rapyuta.io)">
+    <node pkg="topic_tools" type="relay" name="relay_joint_states" args="$(arg namespace)/joint_states  /joint_states" />
+    <node pkg="topic_tools" type="relay" name="relay_tf" args="$(arg namespace)/tf  /tf" />
+    <node pkg="topic_tools" type="relay" name="relay_odom" args="$(arg namespace)/odom  /odom" />
+    <node pkg="topic_tools" type="relay" name="relay_scan" args="$(arg namespace)/scan  /scan" /> 
+    <node pkg="topic_tools" type="relay" name="relay_imu" args="$(arg namespace)/imu  /imu" />
+
+    <node pkg="topic_tools" type="relay" name="relay_cmd_vel" args="/cmd_vel $(arg namespace)/cmd_vel"/>
+  </group>
+
+  <!-- frame_id conversion from gazebo -->
+  <node name="frame_id_prefix_remover" pkg="io_gazebo_turtlebot_gazebo" type="frame_id_prefix_remover.py" args="/scan /$(arg scan_topic)" output="screen" respawn="true" />
 
 </launch>
